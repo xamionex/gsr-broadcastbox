@@ -244,7 +244,7 @@ mod tests {
         assert!(joined.contains("-f 60"));
         assert!(joined.contains("-s 1920x1080"));
         assert!(joined.contains("-bm qp"));
-        assert!(joined.contains("-q high"));
+        assert!(joined.contains("-q ultra"));
         assert!(joined.contains("-cr limited"));
         assert!(joined.contains("-a app-inverse:TeamSpeak|app-inverse:discord"));
         assert!(joined.contains("-o https://broadcast.petar.cc/api/whip"));

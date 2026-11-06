@@ -103,7 +103,7 @@ Command line flags override the environment, and the environment overrides the c
 | `whip_url` | `https://broadcast.petar.cc/api/whip` | WHIP ingest endpoint. |
 | `watch_base_url` | `https://broadcast.petar.cc` | Watch page base, the key is appended. |
 | `monitor` | `current` | Monitor name such as `DP-1`, or `current`. |
-| `quality` | `high` | `medium`, `high`, `very_high` or `ultra`. |
+| `quality` | `ultra` | `medium`, `high`, `very_high` or `ultra`. |
 | `video_bitrate` | `8000` | kbps, used when `bitrate_mode` is `cbr`. |
 | `bitrate_mode` | `qp` | `auto`, `qp`, `vbr` or `cbr`. |
 | `fps` | `60` | Frames per second, 1 to 480. |

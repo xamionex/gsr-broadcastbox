@@ -45,7 +45,7 @@ watch_base_url = "https://broadcast.petar.cc"
 monitor = "current"
 
 # Quality preset: medium, high, very_high or ultra.
-quality = "high"
+quality = "ultra"
 
 # Video bitrate in kbps, used when bitrate_mode is "cbr".
 video_bitrate = 8000

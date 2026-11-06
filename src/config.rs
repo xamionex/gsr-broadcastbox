@@ -55,7 +55,7 @@ impl Default for Config {
             whip_url: "https://broadcast.petar.cc/api/whip".to_string(),
             watch_base_url: "https://broadcast.petar.cc".to_string(),
             monitor: "current".to_string(),
-            quality: "high".to_string(),
+            quality: "ultra".to_string(),
             video_bitrate: 8000,
             bitrate_mode: "qp".to_string(),
             fps: 60,
