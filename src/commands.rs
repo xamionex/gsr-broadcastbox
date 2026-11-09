@@ -20,26 +20,13 @@ pub struct StartOptions {
 
 /// Start a stream, detached by default.
 pub fn start(options: StartOptions) -> Result<(), String> {
-    let (mut config, notes) = config_file::load();
-    for note in notes {
-        if !note.starts_with("loaded ") && !note.starts_with("config: ") {
-            eprintln!("gsr-broadcastbox: {note}");
-        }
-    }
-
-    apply_environment(&mut config);
+    let mut config = load_config();
     apply_options(&mut config, &options);
 
     let stream_key = config::resolve_stream_key(&config.stream_key);
     let mut errors = config.validate();
-    if stream_key.contains('/')
-        || stream_key.contains('?')
-        || stream_key.contains('#')
-        || stream_key.chars().any(char::is_whitespace)
-    {
-        errors.push(format!(
-            "stream key {stream_key:?} cannot contain whitespace, '/', '?' or '#'"
-        ));
+    if let Err(error) = validate_stream_key(&stream_key) {
+        errors.push(error);
     }
     if !errors.is_empty() {
         let message = format!("configuration errors:\n  - {}", errors.join("\n  - "));
@@ -221,6 +208,28 @@ fn spawn_daemon(
     }
 }
 
+/// Play the live stream in mpv.
+pub fn watch(stream_key: Option<String>) -> Result<(), String> {
+    let mut config = load_config();
+    if let Some(key) = stream_key {
+        config.stream_key = key;
+    }
+
+    let stream_key = config::resolve_stream_key(&config.stream_key);
+    let mut errors = config.validate();
+    if let Err(error) = validate_stream_key(&stream_key) {
+        errors.push(error);
+    }
+    if !errors.is_empty() {
+        return Err(format!(
+            "configuration errors:\n  - {}",
+            errors.join("\n  - ")
+        ));
+    }
+
+    crate::watch::run(&config, &stream_key)
+}
+
 /// Stop a running stream and clean up the old script helpers.
 pub fn stop() -> Result<(), String> {
     let mut stopped = false;
@@ -355,6 +364,30 @@ fn existing_stream() -> Result<bool, String> {
             Ok(false)
         }
     }
+}
+
+fn load_config() -> Config {
+    let (mut config, notes) = config_file::load();
+    for note in notes {
+        if !note.starts_with("loaded ") && !note.starts_with("config: ") {
+            eprintln!("gsr-broadcastbox: {note}");
+        }
+    }
+    apply_environment(&mut config);
+    config
+}
+
+fn validate_stream_key(stream_key: &str) -> Result<(), String> {
+    if stream_key.contains('/')
+        || stream_key.contains('?')
+        || stream_key.contains('#')
+        || stream_key.chars().any(char::is_whitespace)
+    {
+        return Err(format!(
+            "stream key {stream_key:?} cannot contain whitespace, '/', '?' or '#'"
+        ));
+    }
+    Ok(())
 }
 
 fn apply_environment(config: &mut Config) {

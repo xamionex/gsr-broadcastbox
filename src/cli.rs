@@ -12,6 +12,7 @@ Usage: gsr-broadcastbox <command> [options]
 
 Commands:
   start [key] [options]   Start streaming in the background
+  watch [key] [options]   Play the live stream in mpv
   stop                    Stop the stream and the tray indicator
   restart [options]       Stop and start again
   status                  Show the current stream state
@@ -29,8 +30,14 @@ Common start options:
       --no-tray           Do not show the tray indicator
   -f, --foreground        Keep the stream attached to this terminal
 
+Watch options:
+  -k, --key <key>         Stream key (defaults to stream_key or your username)
+
 Environment overrides for start:
   STREAM_KEY, STREAM_QUALITY, STREAM_MONITOR, TEAMSPEAK_MODE, WHIP_URL, WATCH_BASE_URL
+
+Environment overrides for watch:
+  STREAM_KEY, WHIP_URL, WATCH_BASE_URL, WHEP_URL
 
 Configuration file:
   ~/.config/gsr-broadcastbox/config.toml
@@ -51,6 +58,19 @@ Options:
   -h, --help              Show this help
 ";
 
+const WATCH_HELP: &str = "\
+Usage: gsr-broadcastbox watch [key] [options]
+
+Play the live stream in mpv through a local GStreamer bridge.
+
+Options:
+  -k, --key <key>         Stream key (defaults to stream_key or your username)
+  -h, --help              Show this help
+
+Environment overrides:
+  STREAM_KEY, WHIP_URL, WATCH_BASE_URL, WHEP_URL
+";
+
 /// Parse the arguments after the binary name and run the command.
 ///
 /// Returns the process exit code.
@@ -68,6 +88,15 @@ pub fn run(args: Vec<String>) -> Result<i32, String> {
             }
             let options = parse_start(&args[1..])?;
             commands::start(options)?;
+            Ok(0)
+        }
+        "watch" => {
+            if wants_help(&args[1..]) {
+                print!("{WATCH_HELP}");
+                return Ok(0);
+            }
+            let key = parse_watch(&args[1..])?;
+            commands::watch(key)?;
             Ok(0)
         }
         "stop" => {
@@ -164,6 +193,38 @@ fn parse_start(args: &[String]) -> Result<StartOptions, String> {
     Ok(options)
 }
 
+/// Parse the key accepted by `watch`.
+fn parse_watch(args: &[String]) -> Result<Option<String>, String> {
+    let mut key: Option<String> = None;
+    let mut index = 0;
+
+    while index < args.len() {
+        let argument = args[index].as_str();
+        match argument {
+            "-k" | "--key" => {
+                if key.is_some() {
+                    return Err("the stream key was given twice".to_string());
+                }
+                key = Some(next_value(args, &mut index, argument)?);
+            }
+            other if other.starts_with('-') => {
+                return Err(format!(
+                    "unknown option {other:?} for watch. Run `gsr-broadcastbox watch --help`."
+                ));
+            }
+            other => {
+                if key.is_some() {
+                    return Err("the stream key was given twice".to_string());
+                }
+                key = Some(other.to_string());
+            }
+        }
+        index += 1;
+    }
+
+    Ok(key)
+}
+
 /// Parse `daemon --pending <path>`.
 fn parse_pending(args: &[String]) -> Result<PathBuf, String> {
     let mut pending: Option<PathBuf> = None;
@@ -232,6 +293,20 @@ mod tests {
     fn unknown_options_are_rejected() {
         let error = parse_start(&args(&["--loud"])).unwrap_err();
         assert!(error.contains("--loud"));
+    }
+
+    #[test]
+    fn watch_accepts_a_positional_or_flag_key() {
+        assert_eq!(
+            parse_watch(&args(&["alice"])).unwrap().as_deref(),
+            Some("alice")
+        );
+        assert_eq!(
+            parse_watch(&args(&["--key", "bob"])).unwrap().as_deref(),
+            Some("bob")
+        );
+        assert!(parse_watch(&args(&["alice", "-k", "bob"])).is_err());
+        assert!(parse_watch(&args(&["--loud"])).is_err());
     }
 
     #[test]

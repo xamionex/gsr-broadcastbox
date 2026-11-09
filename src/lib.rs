@@ -18,6 +18,7 @@ pub mod state;
 pub mod stream;
 pub mod tray;
 pub mod tui;
+pub mod watch;
 
 /// Parse the command line and run it.
 ///
