@@ -91,7 +91,7 @@ pub fn run(config: &Config, stream_key: &str) -> Result<(), String> {
     }
 
     let mut mpv = Command::new("mpv")
-        .args(mpv_args(relay.port))
+        .args(mpv_args(relay.port, config.watch_hardware_decode))
         .stdin(Stdio::null())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
@@ -314,12 +314,18 @@ fn gst_args(whep_endpoint: &str, bridge_port: u16, video: &VideoChain, audio: bo
     args
 }
 
-fn mpv_args(relay_port: u16) -> Vec<String> {
-    vec![
-        "--force-window=yes".to_string(),
-        "--cache=no".to_string(),
-        format!("tcp://127.0.0.1:{relay_port}"),
-    ]
+fn mpv_args(relay_port: u16, hardware_decode: bool) -> Vec<String> {
+    let mut args = vec!["--force-window=yes".to_string(), "--cache=no".to_string()];
+    if hardware_decode {
+        args.push("--hwdec=auto-safe".to_string());
+        args.push("--vd-lavc-threads=1".to_string());
+    } else {
+        // Software decoding measured lower latency than VAAPI on the reference machine.
+        args.push("--hwdec=no".to_string());
+        args.push("--vd-lavc-threads=4".to_string());
+    }
+    args.push(format!("tcp://127.0.0.1:{relay_port}"));
+    args
 }
 
 fn free_tcp_port() -> Result<u16, String> {
@@ -429,11 +435,7 @@ impl Relay {
     }
 
     fn error(&self) -> Option<String> {
-        self.state
-            .error
-            .lock()
-            .ok()
-            .and_then(|error| error.clone())
+        self.state.error.lock().ok().and_then(|error| error.clone())
     }
 
     fn stop(&self) {
@@ -641,10 +643,9 @@ fn packet_is_pat(packet: &[u8]) -> bool {
     if pid != 0 || section.len() < 12 || section[0] != 0 {
         return false;
     }
-    let section_length =
-        (((section[1] & 0x0f) as usize) << 8) | section[2] as usize;
+    let section_length = (((section[1] & 0x0f) as usize) << 8) | section[2] as usize;
     section_length >= 9
-        && (section_length - 9) % 4 == 0
+        && (section_length - 9).is_multiple_of(4)
         && 3 + section_length <= section.len()
 }
 
@@ -655,16 +656,14 @@ fn packet_pmt_streams(packet: &[u8]) -> Option<usize> {
         return None;
     }
 
-    let section_length =
-        (((section[1] & 0x0f) as usize) << 8) | section[2] as usize;
+    let section_length = (((section[1] & 0x0f) as usize) << 8) | section[2] as usize;
     let end = 3 + section_length;
     let crc_start = end.checked_sub(4)?;
     if end > section.len() || crc_start < 12 {
         return None;
     }
 
-    let program_info_length =
-        (((section[10] & 0x0f) as usize) << 8) | section[11] as usize;
+    let program_info_length = (((section[10] & 0x0f) as usize) << 8) | section[11] as usize;
     let mut cursor = 12 + program_info_length;
     if cursor > crc_start {
         return None;
@@ -1310,6 +1309,25 @@ mod tests {
         assert!(args
             .windows(2)
             .any(|pair| pair[0] == "tcpserversink" && pair[1] == "host=127.0.0.1"));
+    }
+
+    #[test]
+    fn mpv_uses_software_decode_by_default() {
+        let args = mpv_args(4321, false);
+        assert!(args.contains(&"--hwdec=no".to_string()));
+        assert!(args.contains(&"--vd-lavc-threads=4".to_string()));
+        assert!(!args
+            .iter()
+            .any(|argument| argument.starts_with("--hwdec=auto")));
+        assert_eq!(args.last().unwrap(), "tcp://127.0.0.1:4321");
+    }
+
+    #[test]
+    fn mpv_can_use_hardware_decode() {
+        let args = mpv_args(4321, true);
+        assert!(args.contains(&"--hwdec=auto-safe".to_string()));
+        assert!(args.contains(&"--vd-lavc-threads=1".to_string()));
+        assert!(!args.contains(&"--vd-lavc-threads=4".to_string()));
     }
 
     #[test]

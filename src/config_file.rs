@@ -39,6 +39,11 @@ whip_url = "https://broadcast.petar.cc/api/whip"
 # Base URL of the watch page. The stream key is appended.
 watch_base_url = "https://broadcast.petar.cc"
 
+# --- Watch ---
+
+# Use hardware decoding in mpv. Software decoding has lower latency but uses more CPU.
+watch_hardware_decode = false
+
 # --- Video ---
 
 # Monitor name such as "DP-1", or "current" to follow the active monitor when a stream starts.
@@ -50,8 +55,8 @@ quality = "high"
 # Video bitrate in kbps, used when bitrate_mode is "cbr".
 video_bitrate = 8000
 
-# auto, qp, vbr or cbr. qp keeps constant quality, cbr keeps a constant size.
-bitrate_mode = "qp"
+# auto, qp, vbr or cbr. cbr keeps a constant bitrate and caps size.
+bitrate_mode = "cbr"
 
 # Frames per second.
 fps = 60

@@ -18,6 +18,8 @@ pub struct Config {
     pub whip_url: String,
     /// Base URL of the watch page, the stream key is appended.
     pub watch_base_url: String,
+    /// Use hardware decoding in mpv. Software decoding has lower latency.
+    pub watch_hardware_decode: bool,
     /// Monitor name such as `DP-1`, or `current` to follow the active monitor when the stream starts.
     pub monitor: String,
     /// Quality preset used in QP and VBR modes.
@@ -54,10 +56,11 @@ impl Default for Config {
             stream_key: String::new(),
             whip_url: "https://broadcast.petar.cc/api/whip".to_string(),
             watch_base_url: "https://broadcast.petar.cc".to_string(),
+            watch_hardware_decode: false,
             monitor: "current".to_string(),
             quality: "high".to_string(),
             video_bitrate: 8000,
-            bitrate_mode: "qp".to_string(),
+            bitrate_mode: "cbr".to_string(),
             fps: 60,
             resolution: "1920x1080".to_string(),
             codec: "h264".to_string(),
@@ -86,6 +89,15 @@ impl Config {
     pub fn quality_argument(&self) -> String {
         if self.bitrate_mode == "cbr" {
             self.video_bitrate.to_string()
+        } else {
+            self.quality.clone()
+        }
+    }
+
+    /// Stream setting for status lines and the tray, such as `high` or `cbr 8000 kbps`.
+    pub fn quality_label(&self) -> String {
+        if self.bitrate_mode == "cbr" {
+            format!("cbr {} kbps", self.video_bitrate)
         } else {
             self.quality.clone()
         }
@@ -250,6 +262,14 @@ mod tests {
     }
 
     #[test]
+    fn defaults_use_cbr_and_software_watch_decode() {
+        let config = Config::default();
+        assert_eq!(config.bitrate_mode, "cbr");
+        assert_eq!(config.quality_argument(), "8000");
+        assert!(!config.watch_hardware_decode);
+    }
+
+    #[test]
     fn cbr_uses_the_video_bitrate_for_q() {
         let mut config = Config {
             bitrate_mode: "cbr".to_string(),
@@ -261,6 +281,16 @@ mod tests {
         config.bitrate_mode = "qp".to_string();
         config.quality = "very_high".to_string();
         assert_eq!(config.quality_argument(), "very_high");
+    }
+
+    #[test]
+    fn quality_label_names_the_mode_and_bitrate() {
+        let mut config = Config::default();
+        assert_eq!(config.quality_label(), "cbr 8000 kbps");
+
+        config.bitrate_mode = "qp".to_string();
+        config.quality = "very_high".to_string();
+        assert_eq!(config.quality_label(), "very_high");
     }
 
     #[test]

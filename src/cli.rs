@@ -23,7 +23,7 @@ Commands:
 
 Common start options:
   -k, --key <key>         Stream key (defaults to stream_key or your username)
-  -q, --quality <preset>  medium, high, very_high or ultra
+  -q, --quality <preset>  medium, high, very_high or ultra (QP/VBR modes)
   -m, --monitor <name>    Monitor name, or \"current\" to follow the active output
   -t, --teamspeak         Stop when TeamSpeak exits
       --no-teamspeak      Disable TeamSpeak mode for this run
@@ -48,7 +48,7 @@ Usage: gsr-broadcastbox start [key] [options]
 
 Options:
   -k, --key <key>         Stream key (defaults to stream_key or your username)
-  -q, --quality <preset>  medium, high, very_high or ultra
+  -q, --quality <preset>  medium, high, very_high or ultra (QP/VBR modes)
   -m, --monitor <name>    Monitor name, or \"current\" to follow the active output
   -t, --teamspeak         Stop when TeamSpeak exits
       --no-teamspeak      Disable TeamSpeak mode for this run

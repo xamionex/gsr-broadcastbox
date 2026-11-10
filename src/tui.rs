@@ -50,6 +50,12 @@ const FIELDS: &[Field] = &[
         section: "Connection",
     },
     Field {
+        key: "watch_hardware_decode",
+        label: "Watch hardware decoding",
+        help: "Off uses software decoding with four threads for lower latency",
+        section: "Watch",
+    },
+    Field {
         key: "monitor",
         label: "Monitor",
         help: "Current Monitor follows the active output when a stream starts",
@@ -1243,6 +1249,7 @@ mod tests {
     fn default_fields_have_the_expected_kinds() {
         let editor = editor(Vec::new(), None);
         assert_eq!(editor.kind("teamspeak"), Kind::Bool);
+        assert_eq!(editor.kind("watch_hardware_decode"), Kind::Bool);
         assert_eq!(editor.kind("fps"), Kind::Integer);
         assert_eq!(editor.kind("quality"), Kind::Text);
         assert_eq!(editor.kind("audio_sources"), Kind::List);

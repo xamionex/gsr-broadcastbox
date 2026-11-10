@@ -57,9 +57,10 @@ pub fn run(pending_path: PathBuf) -> Result<(), String> {
         )
     })?;
 
+    let quality = config.quality_label();
     eprintln!(
         "[daemon] starting stream for {} on {} ({}, {} fps)",
-        stream_key, monitor, config.quality, config.fps
+        stream_key, monitor, quality, config.fps
     );
 
     let mut child = stream::spawn_gsr(&config, &monitor, &stream_key, &log_path)?;
@@ -84,7 +85,7 @@ pub fn run(pending_path: PathBuf) -> Result<(), String> {
         stream_key: stream_key.clone(),
         watch_url: watch_url.clone(),
         monitor: monitor.clone(),
-        quality: config.quality.clone(),
+        quality: quality.clone(),
         teamspeak: config.teamspeak,
         started_at: state::now_secs(),
         log_path: log_path.clone(),
@@ -106,7 +107,7 @@ pub fn run(pending_path: PathBuf) -> Result<(), String> {
                 stream_key: stream_key.clone(),
                 watch_url: watch_url.clone(),
                 monitor: monitor.clone(),
-                quality: config.quality.clone(),
+                quality: quality.clone(),
                 teamspeak: config.teamspeak,
             },
             events.clone(),

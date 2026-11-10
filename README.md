@@ -59,6 +59,8 @@ The first run creates `~/.config/gsr-broadcastbox/config.toml` with commented de
 
 An empty `stream_key` uses your username. `monitor = "current"` follows the output with the active window, workspace or cursor when the stream starts.
 
+`watch` uses software decoding with four threads by default for the lowest latency. Set `watch_hardware_decode = true` to use mpv hardware decoding instead. Hardware decoding uses less CPU but measured higher latency.
+
 ## Commands
 
 | Command | Effect |
@@ -76,7 +78,7 @@ Start options:
 | Option | Effect |
 | --- | --- |
 | `-k`, `--key <key>` | Stream key for this run. A positional key is also accepted. |
-| `-q`, `--quality <preset>` | `medium`, `high`, `very_high` or `ultra`. |
+| `-q`, `--quality <preset>` | `medium`, `high`, `very_high` or `ultra` for QP/VBR modes. |
 | `-m`, `--monitor <name>` | Monitor name, or `current`. |
 | `-t`, `--teamspeak` | Enable TeamSpeak mode for this run. |
 | `--no-teamspeak` | Disable TeamSpeak mode for this run. |
@@ -102,10 +104,11 @@ Command line flags override the environment, and the environment overrides the c
 | `stream_key` | `""` | WHIP stream key. Empty means the current username. |
 | `whip_url` | `https://broadcast.petar.cc/api/whip` | WHIP ingest endpoint. |
 | `watch_base_url` | `https://broadcast.petar.cc` | Watch page base, the key is appended. |
+| `watch_hardware_decode` | `false` | Use mpv hardware decoding. Software decoding has lower latency. |
 | `monitor` | `current` | Monitor name such as `DP-1`, or `current`. |
-| `quality` | `high` | `medium`, `high`, `very_high` or `ultra`. |
+| `quality` | `high` | `medium`, `high`, `very_high` or `ultra`. Used in QP and VBR modes. |
 | `video_bitrate` | `8000` | kbps, used when `bitrate_mode` is `cbr`. |
-| `bitrate_mode` | `qp` | `auto`, `qp`, `vbr` or `cbr`. |
+| `bitrate_mode` | `cbr` | `auto`, `qp`, `vbr` or `cbr`. |
 | `fps` | `60` | Frames per second, 1 to 480. |
 | `resolution` | `1920x1080` | Output size limit. `0x0` keeps the source size. |
 | `codec` | `h264` | `auto`, `h264`, `hevc`, `av1`, `vp8` or `vp9`. |
