@@ -20,6 +20,8 @@ pub struct Config {
     pub watch_base_url: String,
     /// Use hardware decoding in mpv. Software decoding has lower latency.
     pub watch_hardware_decode: bool,
+    /// Extra mpv flags for `watch`, appended before the stream URL.
+    pub watch_mpv_args: Vec<String>,
     /// Monitor name such as `DP-1`, or `current` to follow the active monitor when the stream starts.
     pub monitor: String,
     /// Quality preset used in QP and VBR modes.
@@ -57,6 +59,7 @@ impl Default for Config {
             whip_url: "https://broadcast.petar.cc/api/whip".to_string(),
             watch_base_url: "https://broadcast.petar.cc".to_string(),
             watch_hardware_decode: false,
+            watch_mpv_args: vec!["--mute=yes".to_string()],
             monitor: "current".to_string(),
             quality: "high".to_string(),
             video_bitrate: 8000,
@@ -203,6 +206,15 @@ impl Config {
         {
             errors.push("extra_gsr_args contains an empty entry".to_string());
         }
+        for argument in &self.watch_mpv_args {
+            if argument.trim().is_empty() {
+                errors.push("watch_mpv_args contains an empty entry".to_string());
+            } else if !argument.trim().starts_with('-') {
+                errors.push(format!(
+                    "watch_mpv_args entry {argument:?} must start with '-'"
+                ));
+            }
+        }
         errors
     }
 }
@@ -291,6 +303,31 @@ mod tests {
         config.bitrate_mode = "qp".to_string();
         config.quality = "very_high".to_string();
         assert_eq!(config.quality_label(), "very_high");
+    }
+
+    #[test]
+    fn watch_mpv_args_default_to_muted_audio() {
+        assert_eq!(
+            Config::default().watch_mpv_args,
+            vec!["--mute=yes".to_string()]
+        );
+    }
+
+    #[test]
+    fn watch_mpv_args_must_be_flags() {
+        let config = Config {
+            watch_mpv_args: vec!["--mute=yes".to_string(), "geometry".to_string()],
+            ..Config::default()
+        };
+        let errors = config.validate();
+        assert!(errors.iter().any(|error| error.contains("watch_mpv_args")));
+
+        let config = Config {
+            watch_mpv_args: vec!["  ".to_string()],
+            ..Config::default()
+        };
+        let errors = config.validate();
+        assert!(errors.iter().any(|error| error.contains("watch_mpv_args")));
     }
 
     #[test]

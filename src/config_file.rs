@@ -44,6 +44,9 @@ watch_base_url = "https://broadcast.petar.cc"
 # Use hardware decoding in mpv. Software decoding has lower latency but uses more CPU.
 watch_hardware_decode = false
 
+# Extra mpv flags passed to watch, one entry per flag. The default mutes audio.
+watch_mpv_args = ["--mute=yes"]
+
 # --- Video ---
 
 # Monitor name such as "DP-1", or "current" to follow the active monitor when a stream starts.

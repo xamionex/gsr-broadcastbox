@@ -91,7 +91,11 @@ pub fn run(config: &Config, stream_key: &str) -> Result<(), String> {
     }
 
     let mut mpv = Command::new("mpv")
-        .args(mpv_args(relay.port, config.watch_hardware_decode))
+        .args(mpv_args(
+            relay.port,
+            config.watch_hardware_decode,
+            &config.watch_mpv_args,
+        ))
         .stdin(Stdio::null())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
@@ -314,7 +318,7 @@ fn gst_args(whep_endpoint: &str, bridge_port: u16, video: &VideoChain, audio: bo
     args
 }
 
-fn mpv_args(relay_port: u16, hardware_decode: bool) -> Vec<String> {
+fn mpv_args(relay_port: u16, hardware_decode: bool, extra: &[String]) -> Vec<String> {
     let mut args = vec!["--force-window=yes".to_string(), "--cache=no".to_string()];
     if hardware_decode {
         args.push("--hwdec=auto-safe".to_string());
@@ -324,6 +328,13 @@ fn mpv_args(relay_port: u16, hardware_decode: bool) -> Vec<String> {
         args.push("--hwdec=no".to_string());
         args.push("--vd-lavc-threads=4".to_string());
     }
+    // Extras come last so they can override the built in flags, and before the URL.
+    args.extend(
+        extra
+            .iter()
+            .map(|argument| argument.trim().to_string())
+            .filter(|argument| !argument.is_empty()),
+    );
     args.push(format!("tcp://127.0.0.1:{relay_port}"));
     args
 }
@@ -1313,7 +1324,7 @@ mod tests {
 
     #[test]
     fn mpv_uses_software_decode_by_default() {
-        let args = mpv_args(4321, false);
+        let args = mpv_args(4321, false, &[]);
         assert!(args.contains(&"--hwdec=no".to_string()));
         assert!(args.contains(&"--vd-lavc-threads=4".to_string()));
         assert!(!args
@@ -1324,10 +1335,30 @@ mod tests {
 
     #[test]
     fn mpv_can_use_hardware_decode() {
-        let args = mpv_args(4321, true);
+        let args = mpv_args(4321, true, &[]);
         assert!(args.contains(&"--hwdec=auto-safe".to_string()));
         assert!(args.contains(&"--vd-lavc-threads=1".to_string()));
         assert!(!args.contains(&"--vd-lavc-threads=4".to_string()));
+    }
+
+    #[test]
+    fn mpv_extra_flags_come_before_the_url() {
+        let extra = vec![
+            "--mute=yes".to_string(),
+            " --geometry=640x360+10+10 ".to_string(),
+        ];
+        let args = mpv_args(4321, false, &extra);
+        let url = args
+            .iter()
+            .position(|argument| argument == "tcp://127.0.0.1:4321")
+            .unwrap();
+        let mute = args
+            .iter()
+            .position(|argument| argument == "--mute=yes")
+            .unwrap();
+        assert!(mute < url);
+        assert!(args.contains(&"--geometry=640x360+10+10".to_string()));
+        assert_eq!(args.last().unwrap(), "tcp://127.0.0.1:4321");
     }
 
     #[test]

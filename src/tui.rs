@@ -56,6 +56,12 @@ const FIELDS: &[Field] = &[
         section: "Watch",
     },
     Field {
+        key: "watch_mpv_args",
+        label: "Watch mpv args",
+        help: "Extra mpv flags, one per entry; the default mutes audio",
+        section: "Watch",
+    },
+    Field {
         key: "monitor",
         label: "Monitor",
         help: "Current Monitor follows the active output when a stream starts",
@@ -208,6 +214,7 @@ fn integer_range(key: &str) -> Option<(i64, i64)> {
 fn list_example(key: &str) -> &'static str {
     match key {
         "audio_sources" => "app-inverse:discord",
+        "watch_mpv_args" => "--mute=yes",
         "extra_gsr_args" => "-keyint 1",
         _ => "",
     }
@@ -1250,6 +1257,7 @@ mod tests {
         let editor = editor(Vec::new(), None);
         assert_eq!(editor.kind("teamspeak"), Kind::Bool);
         assert_eq!(editor.kind("watch_hardware_decode"), Kind::Bool);
+        assert_eq!(editor.kind("watch_mpv_args"), Kind::List);
         assert_eq!(editor.kind("fps"), Kind::Integer);
         assert_eq!(editor.kind("quality"), Kind::Text);
         assert_eq!(editor.kind("audio_sources"), Kind::List);

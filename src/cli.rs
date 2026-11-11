@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use crate::commands::{self, StartOptions};
+use crate::commands::{self, StartOptions, WatchOptions};
 use crate::{daemon, tui};
 
 const HELP: &str = "\
@@ -32,6 +32,7 @@ Common start options:
 
 Watch options:
   -k, --key <key>         Stream key (defaults to stream_key or your username)
+      --mpv-arg <flag>    Extra mpv flag, repeatable; the default mutes audio
 
 Environment overrides for start:
   STREAM_KEY, STREAM_QUALITY, STREAM_MONITOR, TEAMSPEAK_MODE, WHIP_URL, WATCH_BASE_URL
@@ -65,6 +66,7 @@ Play the live stream in mpv through a local GStreamer bridge.
 
 Options:
   -k, --key <key>         Stream key (defaults to stream_key or your username)
+      --mpv-arg <flag>    Extra mpv flag, repeatable; the default mutes audio
   -h, --help              Show this help
 
 Environment overrides:
@@ -95,8 +97,8 @@ pub fn run(args: Vec<String>) -> Result<i32, String> {
                 print!("{WATCH_HELP}");
                 return Ok(0);
             }
-            let key = parse_watch(&args[1..])?;
-            commands::watch(key)?;
+            let options = parse_watch(&args[1..])?;
+            commands::watch(options)?;
             Ok(0)
         }
         "stop" => {
@@ -193,19 +195,31 @@ fn parse_start(args: &[String]) -> Result<StartOptions, String> {
     Ok(options)
 }
 
-/// Parse the key accepted by `watch`.
-fn parse_watch(args: &[String]) -> Result<Option<String>, String> {
-    let mut key: Option<String> = None;
+/// Parse the options accepted by `watch`.
+fn parse_watch(args: &[String]) -> Result<WatchOptions, String> {
+    let mut options = WatchOptions::default();
     let mut index = 0;
 
     while index < args.len() {
         let argument = args[index].as_str();
         match argument {
             "-k" | "--key" => {
-                if key.is_some() {
+                if options.stream_key.is_some() {
                     return Err("the stream key was given twice".to_string());
                 }
-                key = Some(next_value(args, &mut index, argument)?);
+                options.stream_key = Some(next_value(args, &mut index, argument)?);
+            }
+            "--mpv-arg" => {
+                options
+                    .mpv_args
+                    .push(next_value(args, &mut index, argument)?);
+            }
+            other if other.starts_with("--mpv-arg=") => {
+                let value = other["--mpv-arg=".len()..].trim();
+                if value.is_empty() {
+                    return Err("--mpv-arg needs a value".to_string());
+                }
+                options.mpv_args.push(value.to_string());
             }
             other if other.starts_with('-') => {
                 return Err(format!(
@@ -213,16 +227,16 @@ fn parse_watch(args: &[String]) -> Result<Option<String>, String> {
                 ));
             }
             other => {
-                if key.is_some() {
+                if options.stream_key.is_some() {
                     return Err("the stream key was given twice".to_string());
                 }
-                key = Some(other.to_string());
+                options.stream_key = Some(other.to_string());
             }
         }
         index += 1;
     }
 
-    Ok(key)
+    Ok(options)
 }
 
 /// Parse `daemon --pending <path>`.
@@ -298,15 +312,37 @@ mod tests {
     #[test]
     fn watch_accepts_a_positional_or_flag_key() {
         assert_eq!(
-            parse_watch(&args(&["alice"])).unwrap().as_deref(),
+            parse_watch(&args(&["alice"]))
+                .unwrap()
+                .stream_key
+                .as_deref(),
             Some("alice")
         );
         assert_eq!(
-            parse_watch(&args(&["--key", "bob"])).unwrap().as_deref(),
+            parse_watch(&args(&["--key", "bob"]))
+                .unwrap()
+                .stream_key
+                .as_deref(),
             Some("bob")
         );
         assert!(parse_watch(&args(&["alice", "-k", "bob"])).is_err());
         assert!(parse_watch(&args(&["--loud"])).is_err());
+    }
+
+    #[test]
+    fn watch_collects_mpv_flags() {
+        let options = parse_watch(&args(&[
+            "--mpv-arg",
+            "--mute=no",
+            "--mpv-arg=--geometry=640x360",
+        ]))
+        .unwrap();
+        assert_eq!(
+            options.mpv_args,
+            vec!["--mute=no".to_string(), "--geometry=640x360".to_string()]
+        );
+        assert!(parse_watch(&args(&["--mpv-arg"])).is_err());
+        assert!(parse_watch(&args(&["--mpv-arg="])).is_err());
     }
 
     #[test]

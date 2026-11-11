@@ -18,6 +18,13 @@ pub struct StartOptions {
     pub foreground: bool,
 }
 
+/// Command line overrides for `watch`.
+#[derive(Debug, Default, Clone)]
+pub struct WatchOptions {
+    pub stream_key: Option<String>,
+    pub mpv_args: Vec<String>,
+}
+
 /// Start a stream, detached by default.
 pub fn start(options: StartOptions) -> Result<(), String> {
     let mut config = load_config();
@@ -209,11 +216,13 @@ fn spawn_daemon(
 }
 
 /// Play the live stream in mpv.
-pub fn watch(stream_key: Option<String>) -> Result<(), String> {
+pub fn watch(options: WatchOptions) -> Result<(), String> {
     let mut config = load_config();
-    if let Some(key) = stream_key {
+    if let Some(key) = options.stream_key {
         config.stream_key = key;
     }
+    // Appending keeps the established precedence: command line flags win over the config file.
+    config.watch_mpv_args.extend(options.mpv_args);
 
     let stream_key = config::resolve_stream_key(&config.stream_key);
     let mut errors = config.validate();

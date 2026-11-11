@@ -59,13 +59,14 @@ The first run creates `~/.config/gsr-broadcastbox/config.toml` with commented de
 
 An empty `stream_key` uses your username. `monitor = "current"` follows the output with the active window, workspace or cursor when the stream starts.
 
-`watch` uses software decoding with four threads by default for the lowest latency. Set `watch_hardware_decode = true` to use mpv hardware decoding instead. Hardware decoding uses less CPU but measured higher latency.
+`watch` uses software decoding with four threads by default for the lowest latency. Set `watch_hardware_decode = true` to use mpv hardware decoding instead. Hardware decoding uses less CPU but measured higher latency. Playback starts muted. Add mpv flags with `watch_mpv_args`, or repeat `--mpv-arg` for a single run. Later flags win, so `gsr-broadcastbox watch --mpv-arg=--mute=no` restores audio.
 
 ## Commands
 
 | Command | Effect |
 | --- | --- |
 | `start [key] [options]` | Start a detached stream. Prints the watch URL and log path. |
+| `watch [key] [options]` | Play the stream in mpv. Muted by default. |
 | `stop` | Stop the stream, the daemon and the tray. Also cleans up the old `stream.sh` helpers. |
 | `restart [options]` | Stop and start again. |
 | `status` | Print stream state. Exits with 1 when nothing is running. |
@@ -84,6 +85,13 @@ Start options:
 | `--no-teamspeak` | Disable TeamSpeak mode for this run. |
 | `--tray` / `--no-tray` | Show or hide the tray indicator. |
 | `-f`, `--foreground` | Keep the stream attached to the terminal instead of detaching. |
+
+Watch options:
+
+| Option | Effect |
+| --- | --- |
+| `-k`, `--key <key>` | Stream key for this run. A positional key is also accepted. |
+| `--mpv-arg <flag>` | Extra mpv flag for this run. Repeatable, and `--mpv-arg=<flag>` also works. |
 
 Environment overrides for `start` and `restart`:
 
@@ -105,6 +113,7 @@ Command line flags override the environment, and the environment overrides the c
 | `whip_url` | `https://broadcast.petar.cc/api/whip` | WHIP ingest endpoint. |
 | `watch_base_url` | `https://broadcast.petar.cc` | Watch page base, the key is appended. |
 | `watch_hardware_decode` | `false` | Use mpv hardware decoding. Software decoding has lower latency. |
+| `watch_mpv_args` | `["--mute=yes"]` | Extra mpv flags, one entry per flag. Audio is muted by default. |
 | `monitor` | `current` | Monitor name such as `DP-1`, or `current`. |
 | `quality` | `high` | `medium`, `high`, `very_high` or `ultra`. Used in QP and VBR modes. |
 | `video_bitrate` | `8000` | kbps, used when `bitrate_mode` is `cbr`. |
