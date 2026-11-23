@@ -328,6 +328,9 @@ fn mpv_args(relay_port: u16, hardware_decode: bool, extra: &[String]) -> Vec<Str
         args.push("--hwdec=no".to_string());
         args.push("--vd-lavc-threads=4".to_string());
     }
+    // Small buffers keep playback near the live edge. Lower audio buffers built a large backlog in testing.
+    args.push("--demuxer-readahead-secs=0.2".to_string());
+    args.push("--audio-buffer=0.05".to_string());
     // Extras come last so they can override the built in flags, and before the URL.
     args.extend(
         extra
@@ -1342,10 +1345,18 @@ mod tests {
     }
 
     #[test]
+    fn mpv_keeps_live_buffers_small() {
+        let args = mpv_args(4321, false, &[]);
+        assert!(args.contains(&"--demuxer-readahead-secs=0.2".to_string()));
+        assert!(args.contains(&"--audio-buffer=0.05".to_string()));
+    }
+
+    #[test]
     fn mpv_extra_flags_come_before_the_url() {
         let extra = vec![
             "--mute=yes".to_string(),
             " --geometry=640x360+10+10 ".to_string(),
+            "--demuxer-readahead-secs=1".to_string(),
         ];
         let args = mpv_args(4321, false, &extra);
         let url = args
@@ -1356,7 +1367,17 @@ mod tests {
             .iter()
             .position(|argument| argument == "--mute=yes")
             .unwrap();
+        let readahead = args
+            .iter()
+            .position(|argument| argument == "--demuxer-readahead-secs=0.2")
+            .unwrap();
+        let override_readahead = args
+            .iter()
+            .position(|argument| argument == "--demuxer-readahead-secs=1")
+            .unwrap();
         assert!(mute < url);
+        assert!(readahead < override_readahead);
+        assert!(override_readahead < url);
         assert!(args.contains(&"--geometry=640x360+10+10".to_string()));
         assert_eq!(args.last().unwrap(), "tcp://127.0.0.1:4321");
     }

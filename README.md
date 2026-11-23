@@ -59,7 +59,7 @@ The first run creates `~/.config/gsr-broadcastbox/config.toml` with commented de
 
 An empty `stream_key` uses your username. `monitor = "current"` follows the output with the active window, workspace or cursor when the stream starts.
 
-`watch` uses software decoding with four threads by default for the lowest latency. Set `watch_hardware_decode = true` to use mpv hardware decoding instead. Hardware decoding uses less CPU but measured higher latency. Playback starts muted. Add mpv flags with `watch_mpv_args`, or repeat `--mpv-arg` for a single run. Later flags win, so `gsr-broadcastbox watch --mpv-arg=--mute=no` restores audio.
+`watch` uses software decoding with four threads by default for the lowest latency. Set `watch_hardware_decode = true` to use mpv hardware decoding instead. Hardware decoding uses less CPU but measured higher latency. The player keeps a 0.2 s demuxer readahead and a 0.05 s audio buffer. Smaller audio buffers built a large playback backlog in testing. Playback starts muted. Add mpv flags with `watch_mpv_args`, or repeat `--mpv-arg` for a single run. Later flags win, so `gsr-broadcastbox watch --mpv-arg=--mute=no` restores audio and `--mpv-arg=--demuxer-readahead-secs=1` restores the older readahead.
 
 ## Commands
 
