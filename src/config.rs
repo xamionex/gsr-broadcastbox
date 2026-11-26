@@ -38,7 +38,7 @@ pub struct Config {
     pub color_range: String,
     pub audio_codec: String,
     pub audio_bitrate: u32,
-    /// Application audio sources, joined with `|` for gpu-screen-recorder.
+    /// Application audio sources, joined with `|` for gpu-screen-recorder. Names after `app:` and `app-inverse:` are regexes.
     pub audio_sources: Vec<String>,
     /// Stop the stream when the TeamSpeak process exits.
     pub teamspeak: bool,
@@ -71,6 +71,7 @@ impl Default for Config {
             audio_codec: "opus".to_string(),
             audio_bitrate: 128,
             audio_sources: vec![
+                r"app-inverse:TeamSpeak(?: \[\d+\])?".to_string(),
                 "app-inverse:TeamSpeak".to_string(),
                 "app-inverse:discord".to_string(),
                 "app-inverse:plasmashell".to_string(),
@@ -108,12 +109,24 @@ impl Config {
 
     /// Application audio sources joined for `-a`, or `None` when no source is configured.
     pub fn audio_argument(&self) -> Option<String> {
-        let sources: Vec<&str> = self
+        self.audio_argument_with_apps(&[])
+    }
+
+    /// Application audio sources joined for `-a` after expanding regexes against the running applications.
+    pub fn audio_argument_with_apps(&self, application_names: &[String]) -> Option<String> {
+        let mut sources: Vec<String> = Vec::new();
+        for source in self
             .audio_sources
             .iter()
             .map(|source| source.trim())
             .filter(|source| !source.is_empty())
-            .collect();
+        {
+            for expanded in expand_application_source(source, application_names) {
+                if !sources.contains(&expanded) {
+                    sources.push(expanded);
+                }
+            }
+        }
         if sources.is_empty() {
             None
         } else {
@@ -248,6 +261,32 @@ pub fn watch_url(base: &str, key: &str) -> String {
     format!("{}/{}", base.trim_end_matches('/'), key)
 }
 
+/// Expand an `app:` or `app-inverse:` source by matching its name as a case-insensitive regex.
+fn expand_application_source(source: &str, application_names: &[String]) -> Vec<String> {
+    let Some((prefix, pattern)) = source.split_once(':') else {
+        return vec![source.to_string()];
+    };
+    if prefix != "app" && prefix != "app-inverse" {
+        return vec![source.to_string()];
+    }
+    let Ok(regex) = regex::RegexBuilder::new(&format!("^(?:{pattern})$"))
+        .case_insensitive(true)
+        .build()
+    else {
+        return vec![source.to_string()];
+    };
+    let matches: Vec<String> = application_names
+        .iter()
+        .filter(|name| regex.is_match(name))
+        .map(|name| format!("{prefix}:{name}"))
+        .collect();
+    if matches.is_empty() {
+        vec![source.to_string()]
+    } else {
+        matches
+    }
+}
+
 fn is_http_url(value: &str) -> bool {
     let value = value.trim();
     value.starts_with("http://") || value.starts_with("https://")
@@ -336,7 +375,7 @@ mod tests {
         assert_eq!(
             config.audio_argument().as_deref(),
             Some(
-                "app-inverse:TeamSpeak|app-inverse:discord|app-inverse:plasmashell|app-inverse:pipewire|app-inverse:linuxsoundboard.local_playback|app-inverse:linuxsoundboard.virtual_mic_feeder"
+                r"app-inverse:TeamSpeak(?: \[\d+\])?|app-inverse:discord|app-inverse:plasmashell|app-inverse:pipewire|app-inverse:linuxsoundboard.local_playback|app-inverse:linuxsoundboard.virtual_mic_feeder"
             )
         );
 
@@ -345,6 +384,53 @@ mod tests {
 
         config.audio_sources.clear();
         assert_eq!(config.audio_argument(), None);
+    }
+
+    #[test]
+    fn application_sources_expand_regexes_against_running_apps() {
+        let config = Config {
+            audio_sources: vec![r"app-inverse:TeamSpeak(?: \[\d+\])?".to_string()],
+            ..Config::default()
+        };
+        let apps = vec!["TeamSpeak [857534]".to_string(), "discord".to_string()];
+
+        assert_eq!(
+            config.audio_argument_with_apps(&apps).as_deref(),
+            Some("app-inverse:TeamSpeak [857534]")
+        );
+
+        let apps = vec!["TeamSpeak".to_string()];
+        assert_eq!(
+            config.audio_argument_with_apps(&apps).as_deref(),
+            Some("app-inverse:TeamSpeak")
+        );
+
+        let apps = vec!["Discord".to_string()];
+        let config = Config {
+            audio_sources: vec!["app:discord".to_string()],
+            ..Config::default()
+        };
+        assert_eq!(
+            config.audio_argument_with_apps(&apps).as_deref(),
+            Some("app:Discord")
+        );
+    }
+
+    #[test]
+    fn unmatched_application_sources_are_kept_literal() {
+        let config = Config {
+            audio_sources: vec![
+                r"app-inverse:TeamSpeak(?: \[\d+\])?".to_string(),
+                "app:not-running".to_string(),
+            ],
+            ..Config::default()
+        };
+        let apps = vec!["discord".to_string()];
+
+        assert_eq!(
+            config.audio_argument_with_apps(&apps).as_deref(),
+            Some(r"app-inverse:TeamSpeak(?: \[\d+\])?|app:not-running")
+        );
     }
 
     #[test]

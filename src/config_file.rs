@@ -82,8 +82,10 @@ audio_codec = "opus"
 audio_bitrate = 128
 
 # Application audio sources mixed into the stream. Entries are joined with "|" for gpu-screen-recorder.
+# Names after app: and app-inverse: are case-insensitive regular expressions matched against
+# `gpu-screen-recorder --list-application-audio` when a stream starts.
 audio_sources = [
-    "app-inverse:TeamSpeak",
+    "app-inverse:TeamSpeak(?: \\[\\d+\\])?",
     "app-inverse:discord",
     "app-inverse:plasmashell",
     "app-inverse:pipewire",

@@ -35,8 +35,8 @@ pub fn open_log(path: &std::path::Path) -> Result<File, String> {
     Ok(file)
 }
 
-/// Arguments passed to gpu-screen-recorder.
-pub fn build_gsr_args(config: &Config, monitor: &str) -> Vec<String> {
+/// Arguments passed to gpu-screen-recorder, with application audio regexes expanded against running apps.
+pub fn build_gsr_args(config: &Config, monitor: &str, application_names: &[String]) -> Vec<String> {
     let mut args = vec![
         "-w".to_string(),
         monitor.to_string(),
@@ -59,7 +59,7 @@ pub fn build_gsr_args(config: &Config, monitor: &str) -> Vec<String> {
         "-cr".to_string(),
         config.color_range.clone(),
     ];
-    if let Some(audio) = config.audio_argument() {
+    if let Some(audio) = config.audio_argument_with_apps(application_names) {
         args.push("-a".to_string());
         args.push(audio);
     }
@@ -75,6 +75,24 @@ pub fn build_gsr_args(config: &Config, monitor: &str) -> Vec<String> {
         }
     }
     args
+}
+
+/// Application names currently exposed by gpu-screen-recorder for application audio capture.
+pub fn list_application_audio() -> Vec<String> {
+    let output = Command::new("gpu-screen-recorder")
+        .arg("--list-application-audio")
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output();
+    match output {
+        Ok(output) if output.status.success() => String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(ToOwned::to_owned)
+            .collect(),
+        _ => Vec::new(),
+    }
 }
 
 /// Make sure gpu-screen-recorder is installed and runnable.
@@ -112,7 +130,7 @@ pub fn spawn_gsr(
         .map_err(|e| format!("failed to duplicate the log handle: {e}"))?;
 
     Command::new("gpu-screen-recorder")
-        .args(build_gsr_args(config, monitor))
+        .args(build_gsr_args(config, monitor, &list_application_audio()))
         .env("GSR_AUTH", stream_key)
         .stdin(Stdio::null())
         .stdout(log)
@@ -233,7 +251,7 @@ mod tests {
     #[test]
     fn default_args_match_the_broadcast_setup() {
         let config = Config::default();
-        let args = build_gsr_args(&config, "DP-1");
+        let args = build_gsr_args(&config, "DP-1", &[]);
         let joined = args.join(" ");
 
         assert!(joined.contains("-w DP-1"));
@@ -246,7 +264,7 @@ mod tests {
         assert!(joined.contains("-bm cbr"));
         assert!(joined.contains("-q 8000"));
         assert!(joined.contains("-cr limited"));
-        assert!(joined.contains("-a app-inverse:TeamSpeak|app-inverse:discord"));
+        assert!(joined.contains(r"-a app-inverse:TeamSpeak(?: \[\d+\])?|app-inverse:discord"));
         assert!(joined.contains("-o https://broadcast.petar.cc/api/whip"));
         assert!(joined.contains("-v no"));
     }
@@ -258,7 +276,7 @@ mod tests {
             video_bitrate: 6000,
             ..Config::default()
         };
-        let args = build_gsr_args(&config, "DP-1");
+        let args = build_gsr_args(&config, "DP-1", &[]);
         let q = args
             .iter()
             .position(|argument| argument == "-q")
@@ -272,7 +290,7 @@ mod tests {
             extra_gsr_args: vec!["-keyint".to_string(), "1".to_string()],
             ..Config::default()
         };
-        let args = build_gsr_args(&config, "DP-1");
+        let args = build_gsr_args(&config, "DP-1", &[]);
         assert_eq!(
             &args[args.len() - 2..],
             &["-keyint".to_string(), "1".to_string()]
@@ -280,10 +298,26 @@ mod tests {
     }
 
     #[test]
+    fn application_audio_regexes_expand_before_launching() {
+        let config = Config::default();
+        let apps = vec!["TeamSpeak [857534]".to_string(), "discord".to_string()];
+        let args = build_gsr_args(&config, "DP-1", &apps);
+        let audio = args
+            .iter()
+            .position(|argument| argument == "-a")
+            .map(|index| args[index + 1].as_str())
+            .unwrap();
+
+        assert!(audio.contains("app-inverse:TeamSpeak [857534]"));
+        assert!(audio.contains("app-inverse:discord"));
+        assert!(!audio.contains(r"app-inverse:TeamSpeak(?: \[\d+\])?"));
+    }
+
+    #[test]
     fn audio_is_omitted_when_no_sources_are_configured() {
         let mut config = Config::default();
         config.audio_sources.clear();
-        let args = build_gsr_args(&config, "DP-1");
+        let args = build_gsr_args(&config, "DP-1", &[]);
         assert!(!args.iter().any(|argument| argument == "-a"));
     }
 }

@@ -124,7 +124,7 @@ Command line flags override the environment, and the environment overrides the c
 | `color_range` | `limited` | `limited` or `full`. |
 | `audio_codec` | `opus` | `opus`, `aac`, `flac` or `mp3`. |
 | `audio_bitrate` | `128` | kbps, up to 512. |
-| `audio_sources` | application list | Entries are joined with `|` for `-a`. See below. |
+| `audio_sources` | application list | Entries are joined with `|` for `-a`. `app:` and `app-inverse:` names are regexes. See below. |
 | `teamspeak` | `false` | Refuse to start without TeamSpeak and stop when it exits. |
 | `teamspeak_process` | `TeamSpeak` | Process name checked by TeamSpeak mode. |
 | `tray` | `true` | Show the tray indicator while streaming. |
@@ -135,7 +135,7 @@ The default audio sources are:
 
 ```toml
 audio_sources = [
-    "app-inverse:TeamSpeak",
+    "app-inverse:TeamSpeak(?: \\[\\d+\\])?",
     "app-inverse:discord",
     "app-inverse:plasmashell",
     "app-inverse:pipewire",
@@ -143,6 +143,8 @@ audio_sources = [
     "app-inverse:linuxsoundboard.virtual_mic_feeder",
 ]
 ```
+
+Names after `app:` and `app-inverse:` are case-insensitive regular expressions. They are matched against `gpu-screen-recorder --list-application-audio` when a stream starts, and each match is passed to gpu-screen-recorder as a concrete application name. Patterns that match no running application are passed through unchanged. TeamSpeak registers its audio node as `TeamSpeak [857534]`, so the default regex matches both the plain name and the PID suffixed name.
 
 Remove sources you do not use. An empty list omits `-a` entirely.
 
